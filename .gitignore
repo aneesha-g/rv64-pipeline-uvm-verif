@@ -1,0 +1,14 @@
+obj_dir/
+build/
+*.vcd
+*.fst
+*.o
+*.elf
+*.bin
+*.hex
+*.log
+__pycache__/
+xsim.dir/
+*.jou
+*.pb
+.Xil/
