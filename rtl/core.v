@@ -8,11 +8,14 @@ module core #(
   parameter XLEN = 32,
   parameter [XLEN-1:0] RESET_PC = 'h80000000,
   parameter BP_EN = 1,              // [P4] 1 = predictor on, 0 = always predict not-taken
-  parameter BTB_ENTRIES = 64        // [P4]
+  parameter BTB_ENTRIES = 64,       // [P4]
+  parameter IC_LINES = 64           // [P5] icache lines, 16 bytes each
 )(
   input                    clk,
   input                    rst_n,
+  output                   imem_req,       // [P5] icache line-fill port
   output [XLEN-1:0]        imem_addr,
+  input                    imem_rvalid,
   input  [31:0]            imem_rdata,
   output [XLEN-1:0]        dmem_addr,
   output                   dmem_we,
@@ -69,7 +72,15 @@ module core #(
   reg [63:0]      order;
 
   // ================= IF =================
-  assign imem_addr = pc;
+  // [P5] instruction cache: direct-mapped, 16-byte lines, refilled over the imem port
+  wire        ic_hit;
+  wire [31:0] ic_rdata;
+  icache #(.XLEN(XLEN), .LINES(IC_LINES)) u_ic (
+    .clk(clk), .rst_n(rst_n),
+    .req(~halting), .pc(pc), .hit(ic_hit), .rdata(ic_rdata),
+    .mem_req(imem_req), .mem_addr(imem_addr),
+    .mem_rvalid(imem_rvalid), .mem_rdata(imem_rdata)
+  );
 
   // ================= ID =================
   wire [4:0] id_rs1 = ifid_insn[19:15];
@@ -227,6 +238,14 @@ module core #(
   // ================= control: stop fetch on ecall / illegal =================
   wire d_stop = ifid_valid & (d_is_halt | ~d_legal);
 
+  // [P5] cycles IF is blocked waiting for an icache fill (the testbench prints this)
+  wire if_miss_stall = ~ex_redirect & ~stall & ~(halting | d_stop) & ~ic_hit;
+  reg [63:0] perf_ic_stall;
+  always @(posedge clk) begin
+    if (!rst_n)             perf_ic_stall <= 64'd0;
+    else if (if_miss_stall) perf_ic_stall <= perf_ic_stall + 64'd1;
+  end
+
   // ================= pipeline register updates =================
   always @(posedge clk) begin
     if (!rst_n) begin
@@ -293,10 +312,12 @@ module core #(
       end else if (halting | d_stop) begin
         ifid_valid <= 1'b0;                      // stop fetching after ecall/illegal
         halting    <= 1'b1;
+      end else if (!ic_hit) begin
+        ifid_valid <= 1'b0;                      // [P5] icache miss: bubble, hold pc, wait for the fill
       end else begin
         ifid_valid   <= 1'b1;
         ifid_pc      <= pc;
-        ifid_insn    <= imem_rdata;
+        ifid_insn    <= ic_rdata;                // [P5]
         ifid_pred_pc <= if_next_pc;              // [P4] remember the guess
         pc           <= if_next_pc;              // [P4] follow the guess
       end

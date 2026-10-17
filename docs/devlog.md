@@ -28,3 +28,11 @@
 - CPI / redirects (paste scripts/cpi.sh output here): (fill this in)
 - Observation: alternating branch defeats a 2-bit counter (mispredicts ~every time).
 - Bugs hit / how I debugged: (fill this in)
+
+## Phase 5: direct-mapped icache
+- icache.v: 64 lines x 16 B, tag/index/word split, valid cleared during fill, FSM fills one word per request.
+- imem port is now req/valid with variable latency (the UVM imem agent will drive this).
+- t_icache: straight-line code across lines + two functions 1 KiB apart that conflict on one set.
+- Traces identical at imem_lat = 1, 3, 10. CPI / fills table (paste cpi.sh output): (fill this in)
+- Known limits: no fence.i / store coherence, in-flight fills aren't cancelled on redirect.
+- Bugs hit / how I debugged: (fill this in)

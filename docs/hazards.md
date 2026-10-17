@@ -18,3 +18,8 @@ checked per instruction type (uses_rs1/uses_rs2).
 
 The predictor only affects speed. EX checks every guess, so a BTB bug can
 never cause a wrong result, only extra flushes.
+
+## Phase 5 update
+| Icache miss | IF (lookup misses) | bubble into IF/ID, hold pc, FSM refills the line | 1 + 4*latency cycles |
+
+Latency can only change speed, never results: the same trace must come out at every +imem_lat.

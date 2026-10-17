@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# usage: scripts/lockstep.sh [test names]   (default: every .bin in build/sw)
+# usage: [SIM=path] [SIMARGS="+imem_lat=5"] scripts/lockstep.sh [test names]
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SIM=${SIM:-$ROOT/build/obj_core/sim_core}
+SIMARGS=${SIMARGS:-}
 ISS=$ROOT/build/iss_rv32
 OUT=$ROOT/build/lockstep
 mkdir -p "$OUT"
@@ -17,7 +18,7 @@ for t in "${tests[@]}"; do
   bin=$ROOT/build/sw/$t.bin
   python3 "$ROOT/scripts/bin2hex.py" "$bin" "$OUT/$t.hex"
   "$ISS" "$bin" > "$OUT/$t.iss.txt" 2> /dev/null
-  "$SIM" +prog="$OUT/$t.hex" +trace="$OUT/$t.rtl.txt" > "$OUT/$t.sim.log" 2>&1
+  "$SIM" +prog="$OUT/$t.hex" +trace="$OUT/$t.rtl.txt" $SIMARGS > "$OUT/$t.sim.log" 2>&1
   if diff -q "$OUT/$t.iss.txt" "$OUT/$t.rtl.txt" > /dev/null; then
     echo "PASS $t"; pass=$((pass+1))
   else

@@ -12,6 +12,7 @@ module tb_core;
 
   wire [XLEN-1:0]   imem_addr, dmem_addr, dmem_wdata, dmem_rdata;
   wire [31:0]       imem_rdata;
+  wire              imem_req, imem_rvalid;
   wire              dmem_we;
   wire [XLEN/8-1:0] dmem_wmask;
 
@@ -26,7 +27,16 @@ module tb_core;
   core #(.XLEN(XLEN), .BP_EN(BP_EN)) dut (.*);
 
   // memory: async read of the aligned word, byte-strobe write
-  assign imem_rdata = mem[imem_addr[19:2]];
+  // instruction memory: fixed-latency answers to line-fill requests (+imem_lat=N, default 3)
+  integer imem_lat;
+  integer lat_cnt = 0;
+  initial if (!$value$plusargs("imem_lat=%d", imem_lat)) imem_lat = 3;
+  always @(posedge clk) begin
+    if (imem_req && !imem_rvalid) lat_cnt <= lat_cnt + 1;
+    else                          lat_cnt <= 0;
+  end
+  assign imem_rvalid = imem_req && (lat_cnt >= imem_lat - 1);
+  assign imem_rdata  = mem[imem_addr[19:2]];
   assign dmem_rdata = mem[dmem_addr[19:2]];
 
   always @(posedge clk) begin
@@ -69,6 +79,7 @@ module tb_core;
         $fclose(fd);
         $display("cycles=%0d", cycles);
         $display("ctrl=%0d redirects=%0d", dut.perf_ctrl, dut.perf_redirect);
+        $display("ic_fills=%0d ic_stalls=%0d", dut.u_ic.perf_fills, dut.perf_ic_stall);
         $display("halted after %0d instructions%s", rvfi_order + 1, rvfi_trap ? " (TRAP)" : "");
         $display("x10=%08x", dut.u_rf.regs[10]);
         $finish;
