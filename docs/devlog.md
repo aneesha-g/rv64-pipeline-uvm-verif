@@ -19,3 +19,12 @@
 - t_hazard covers forwarding at d1/d2/d3, double hazard, x0, load-use, flushes.
 - CPI numbers (cycles vs instructions) for t_loop: (fill this in)
 - Bugs hit / how I debugged: (fill this in)
+
+## Phase 4: 2-bit predictor + 64-entry BTB
+- bpred.v: direct-mapped BTB (index pc[7:2], tag = upper pc), 2-bit saturating counters.
+  Allocate on taken, update on hit. BP_EN=0 reproduces the Phase 3 core.
+- EX compares the real next pc against the pc IF guessed (carried in ifid/idex_pred_pc).
+- New tests: t_bench (nested loops + alternating branch), t_bp (BTB aliasing + wrong-path illegal fetch).
+- CPI / redirects (paste scripts/cpi.sh output here): (fill this in)
+- Observation: alternating branch defeats a 2-bit counter (mispredicts ~every time).
+- Bugs hit / how I debugged: (fill this in)

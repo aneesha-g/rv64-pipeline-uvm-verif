@@ -11,3 +11,10 @@
 
 Rules: youngest producer wins; x0 is never forwarded; operand use is
 checked per instruction type (uses_rs1/uses_rs2).
+
+## Phase 4 update
+| Mispredicted branch/jump | EX (real next pc != guessed pc) | flush IF/ID + ID/EX, redirect | 2 cycles |
+| Correctly predicted taken branch | none | BTB target followed in IF | 0 cycles |
+
+The predictor only affects speed. EX checks every guess, so a BTB bug can
+never cause a wrong result, only extra flushes.

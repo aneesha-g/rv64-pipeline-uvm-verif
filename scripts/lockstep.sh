@@ -2,7 +2,7 @@
 # usage: scripts/lockstep.sh [test names]   (default: every .bin in build/sw)
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-SIM=$ROOT/build/obj_core/sim_core
+SIM=${SIM:-$ROOT/build/obj_core/sim_core}
 ISS=$ROOT/build/iss_rv32
 OUT=$ROOT/build/lockstep
 mkdir -p "$OUT"

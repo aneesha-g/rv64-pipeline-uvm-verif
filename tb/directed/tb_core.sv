@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 module tb_core;
   localparam XLEN = 32;
+  parameter BP_EN = 1;
   localparam MEM_WORDS = 262144;  // 1 MiB
 
   reg clk = 1'b0;
@@ -22,7 +23,7 @@ module tb_core;
   wire [4:0]        rvfi_rd_addr;
   wire [XLEN/8-1:0] rvfi_mem_rmask, rvfi_mem_wmask;
 
-  core #(.XLEN(XLEN)) dut (.*);
+  core #(.XLEN(XLEN), .BP_EN(BP_EN)) dut (.*);
 
   // memory: async read of the aligned word, byte-strobe write
   assign imem_rdata = mem[imem_addr[19:2]];
@@ -67,6 +68,7 @@ module tb_core;
       if (rvfi_halt) begin
         $fclose(fd);
         $display("cycles=%0d", cycles);
+        $display("ctrl=%0d redirects=%0d", dut.perf_ctrl, dut.perf_redirect);
         $display("halted after %0d instructions%s", rvfi_order + 1, rvfi_trap ? " (TRAP)" : "");
         $display("x10=%08x", dut.u_rf.regs[10]);
         $finish;

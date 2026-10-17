@@ -1,11 +1,14 @@
 // 5-stage pipeline: IF -> ID -> EX -> MEM -> WB
 //  - forwarding: EX/MEM and MEM/WB -> EX, plus regfile write-through (WB -> ID)
 //  - load-use: 1-cycle stall (bubble into EX)
-//  - branches/jumps resolve in EX, predict not-taken, flush IF/ID + ID/EX (2 bubbles)
+//  - [P4] IF guesses the next pc with a BTB + 2-bit counters (bpred.v)
+//  - [P4] EX compares the guess with the real next pc; mismatch flushes IF/ID + ID/EX
 //  - ecall/illegal: stop fetching; retires last, then the TB ends the run
 module core #(
   parameter XLEN = 32,
-  parameter [XLEN-1:0] RESET_PC = 'h80000000
+  parameter [XLEN-1:0] RESET_PC = 'h80000000,
+  parameter BP_EN = 1,              // [P4] 1 = predictor on, 0 = always predict not-taken
+  parameter BTB_ENTRIES = 64        // [P4]
 )(
   input                    clk,
   input                    rst_n,
@@ -40,10 +43,12 @@ module core #(
 
   reg             ifid_valid;              // IF/ID
   reg [XLEN-1:0]  ifid_pc;
+  reg [XLEN-1:0]  ifid_pred_pc;            // [P4] pc that IF fetched after this insn
   reg [31:0]      ifid_insn;
 
   reg             idex_valid;              // ID/EX
   reg [XLEN-1:0]  idex_pc;
+  reg [XLEN-1:0]  idex_pred_pc;            // [P4]
   reg [31:0]      idex_insn;
   reg [XLEN-1:0]  idex_rs1_val, idex_rs2_val;
 
@@ -152,7 +157,7 @@ module core #(
   end
 
   wire [XLEN-1:0] jalr_t = ex_a + e_imm_i;
-  reg  [XLEN-1:0] ex_next_pc;
+  reg  [XLEN-1:0] ex_next_pc;                // the REAL next pc
   always @* begin
     ex_next_pc = idex_pc + 4;
     if      (~e_legal)               ex_next_pc = idex_pc;
@@ -161,7 +166,35 @@ module core #(
     else if (e_is_branch & ex_taken) ex_next_pc = idex_pc + e_imm_b;
   end
 
-  wire ex_redirect = idex_valid & e_legal & (e_is_jal | e_is_jalr | (e_is_branch & ex_taken));
+  // ================= [P4] branch predictor: lookup in IF, update from EX =================
+  wire            if_pred_taken;
+  wire [XLEN-1:0] if_pred_target;
+  wire bp_upd_en    = idex_valid & e_legal & (e_is_branch | e_is_jal | e_is_jalr);
+  wire bp_upd_taken = e_is_jal | e_is_jalr | (e_is_branch & ex_taken);
+
+  bpred #(.XLEN(XLEN), .ENTRIES(BTB_ENTRIES), .BP_EN(BP_EN)) u_bp (
+    .clk(clk), .rst_n(rst_n),
+    .pc(pc), .pred_taken(if_pred_taken), .pred_target(if_pred_target),
+    .upd_en(bp_upd_en), .upd_pc(idex_pc), .upd_taken(bp_upd_taken),
+    .upd_target(ex_next_pc)
+  );
+  wire [XLEN-1:0] if_next_pc = if_pred_taken ? if_pred_target : pc + 4;
+
+  // [P4] redirect whenever the guess differs from reality (covers all cases:
+  // predicted-taken-but-not, not-predicted-but-taken, wrong target)
+  wire ex_redirect = idex_valid & e_legal & (ex_next_pc != idex_pred_pc);
+
+  // [P4] perf counters (the testbench prints them)
+  reg [63:0] perf_ctrl, perf_redirect;
+  always @(posedge clk) begin
+    if (!rst_n) begin
+      perf_ctrl     <= 64'd0;
+      perf_redirect <= 64'd0;
+    end else begin
+      if (bp_upd_en)   perf_ctrl     <= perf_ctrl + 64'd1;
+      if (ex_redirect) perf_redirect <= perf_redirect + 64'd1;
+    end
+  end
 
   // ================= MEM =================
   wire [2:0]       m_f3   = exmem_insn[14:12];
@@ -245,6 +278,7 @@ module core #(
       end else begin
         idex_valid   <= ifid_valid;
         idex_pc      <= ifid_pc;
+        idex_pred_pc <= ifid_pred_pc;            // [P4]
         idex_insn    <= ifid_insn;
         idex_rs1_val <= id_rs1_val;
         idex_rs2_val <= id_rs2_val;
@@ -252,7 +286,7 @@ module core #(
 
       // ---- IF -> IF/ID (and PC) ----
       if (ex_redirect) begin
-        pc         <= ex_next_pc;                // branch/jump taken: refetch
+        pc         <= ex_next_pc;                // guess was wrong: refetch from the real pc
         ifid_valid <= 1'b0;                      // flush the wrong-path instruction
       end else if (stall) begin
         // hold pc and IF/ID
@@ -260,10 +294,11 @@ module core #(
         ifid_valid <= 1'b0;                      // stop fetching after ecall/illegal
         halting    <= 1'b1;
       end else begin
-        ifid_valid <= 1'b1;
-        ifid_pc    <= pc;
-        ifid_insn  <= imem_rdata;
-        pc         <= pc + 4;
+        ifid_valid   <= 1'b1;
+        ifid_pc      <= pc;
+        ifid_insn    <= imem_rdata;
+        ifid_pred_pc <= if_next_pc;              // [P4] remember the guess
+        pc           <= if_next_pc;              // [P4] follow the guess
       end
     end
   end
