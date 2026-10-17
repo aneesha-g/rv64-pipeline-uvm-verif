@@ -49,6 +49,7 @@ module tb_core;
     if (!$value$plusargs("trace=%s", tracefile)) tracefile = "trace_rtl.txt";
     if (!$value$plusargs("max=%d", max_cycles)) max_cycles = 100000;
     $readmemh(prog, mem);
+    if ($test$plusargs("wave")) begin $dumpfile("wave.vcd"); $dumpvars(0, tb_core); end
     fd = $fopen(tracefile, "w");
     cycles = 0;
     repeat (3) @(negedge clk);
@@ -65,6 +66,7 @@ module tb_core;
               rvfi_mem_rdata, rvfi_mem_wdata);
       if (rvfi_halt) begin
         $fclose(fd);
+        $display("cycles=%0d", cycles);
         $display("halted after %0d instructions%s", rvfi_order + 1, rvfi_trap ? " (TRAP)" : "");
         $display("x10=%08x", dut.u_rf.regs[10]);
         $finish;

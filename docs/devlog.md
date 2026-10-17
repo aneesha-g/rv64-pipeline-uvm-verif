@@ -11,3 +11,11 @@
 - tb_core.sv prints retire trace in ISS format; lockstep.sh diffs ISS vs RTL.
 - Added t_ctrl (jal/jalr/auipc, all branches, sb/sh/sw and lb/lh/lbu/lhu).
 - Bugs hit / how I debugged: (fill this in)
+
+## Phase 3: 5-stage pipeline
+- Split decode into decode.v; single-cycle core kept as core_sc.v.
+- Forwarding (EX/MEM, MEM/WB, regfile write-through), 1-cycle load-use stall,
+  2-cycle flush on taken branch/jump (predict not-taken). RVFI retires from WB.
+- t_hazard covers forwarding at d1/d2/d3, double hazard, x0, load-use, flushes.
+- CPI numbers (cycles vs instructions) for t_loop: (fill this in)
+- Bugs hit / how I debugged: (fill this in)
