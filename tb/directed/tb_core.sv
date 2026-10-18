@@ -25,6 +25,7 @@ module tb_core;
   wire [XLEN/8-1:0] rvfi_mem_rmask, rvfi_mem_wmask;
 
   core #(.XLEN(XLEN), .BP_EN(BP_EN)) dut (.*);
+  rvfi_checker #(.XLEN(XLEN)) chk (.*);
 
   // memory: async read of the aligned word, byte-strobe write
   // instruction memory: fixed-latency answers to line-fill requests (+imem_lat=N, default 3)

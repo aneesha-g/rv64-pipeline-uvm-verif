@@ -36,3 +36,10 @@
 - Traces identical at imem_lat = 1, 3, 10. CPI / fills table (paste cpi.sh output): (fill this in)
 - Known limits: no fence.i / store coherence, in-flight fills aren't cancelled on redirect.
 - Bugs hit / how I debugged: (fill this in)
+
+## Phase 6: live ISS lockstep (DPI-C)
+- iss/dpi.cpp exposes iss_load/iss_step; rvfi_checker.sv steps the ISS on every RTL retire and compares all RVFI fields.
+- First mismatch prints ISS vs RTL side by side and stops the sim ($fatal).
+- Sanity: changed SUB to ADD in alu.v, the checker flagged retire #3 immediately. Reverted.
+- This DPI wrapper + compare logic gets reused as the UVM scoreboard in Phase 7.
+- Bugs hit / how I debugged: (fill this in)

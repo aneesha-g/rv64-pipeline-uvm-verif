@@ -18,7 +18,7 @@ for t in "${tests[@]}"; do
   bin=$ROOT/build/sw/$t.bin
   python3 "$ROOT/scripts/bin2hex.py" "$bin" "$OUT/$t.hex"
   "$ISS" "$bin" > "$OUT/$t.iss.txt" 2> /dev/null
-  "$SIM" +prog="$OUT/$t.hex" +trace="$OUT/$t.rtl.txt" $SIMARGS > "$OUT/$t.sim.log" 2>&1
+  "$SIM" +prog="$OUT/$t.hex" +trace="$OUT/$t.rtl.txt" +bin="$bin" $SIMARGS > "$OUT/$t.sim.log" 2>&1
   if diff -q "$OUT/$t.iss.txt" "$OUT/$t.rtl.txt" > /dev/null; then
     echo "PASS $t"; pass=$((pass+1))
   else
