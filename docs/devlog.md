@@ -43,3 +43,12 @@
 - Sanity: changed SUB to ADD in alu.v, the checker flagged retire #3 immediately. Reverted.
 - This DPI wrapper + compare logic gets reused as the UVM scoreboard in Phase 7.
 - Bugs hit / how I debugged: (fill this in)
+
+## Phase 8: constrained-random program generator
+- gen/gen.py: legal-by-construction RV32I programs (aligned/in-range memory, forward branches, bounded loops).
+- Hazard-targeted: sources biased to recent destinations (RAW), load-use, store-then-load, branch on loaded
+  value, alternating branch inside loops, jal/jalr skips with stores on the skipped path (wrong-path stores).
+- --spread puts blocks 1 KiB apart and calls them repeatedly: icache conflict misses.
+- scripts/randtest.sh runs N seeds through live ISS-vs-RTL lockstep; prints only failures.
+- Seeds run (fill in): __ default, __ with --n 400, __ with --spread, __ at imem_lat=7. Failures: __
+- Bugs found by random tests / how I debugged: (fill this in)

@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# usage: [SIM=path] [SIMARGS="+imem_lat=5"] scripts/lockstep.sh [test names]
+# usage: [SIM=path] [SIMARGS="+imem_lat=5"] [BINDIR=dir] [OUT=dir] scripts/lockstep.sh [test names]
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SIM=${SIM:-$ROOT/build/obj_core/sim_core}
 SIMARGS=${SIMARGS:-}
+BINDIR=${BINDIR:-$ROOT/build/sw}
+OUT=${OUT:-$ROOT/build/lockstep}
 ISS=$ROOT/build/iss_rv32
-OUT=$ROOT/build/lockstep
 mkdir -p "$OUT"
 
 tests=("$@")
 if [ ${#tests[@]} -eq 0 ]; then
-  for f in "$ROOT"/build/sw/*.bin; do tests+=("$(basename "$f" .bin)"); done
+  for f in "$BINDIR"/*.bin; do tests+=("$(basename "$f" .bin)"); done
 fi
 
 pass=0; fail=0
 for t in "${tests[@]}"; do
-  bin=$ROOT/build/sw/$t.bin
+  bin=$BINDIR/$t.bin
   python3 "$ROOT/scripts/bin2hex.py" "$bin" "$OUT/$t.hex"
   "$ISS" "$bin" > "$OUT/$t.iss.txt" 2> /dev/null
   "$SIM" +prog="$OUT/$t.hex" +trace="$OUT/$t.rtl.txt" +bin="$bin" $SIMARGS > "$OUT/$t.sim.log" 2>&1
