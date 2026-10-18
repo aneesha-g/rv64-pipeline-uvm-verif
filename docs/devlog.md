@@ -52,3 +52,11 @@
 - scripts/randtest.sh runs N seeds through live ISS-vs-RTL lockstep; prints only failures.
 - Seeds run (fill in): __ default, __ with --n 400, __ with --spread, __ at imem_lat=7. Failures: __
 - Bugs found by random tests / how I debugged: (fill this in)
+
+## Phase 11: mutation testing
+- mutants/mutant_defs.py: 10 injected bugs (forwarding, priority, load-use stall, flush, x0, sign-extension,
+  branch immediate, icache fill alignment, BTB target, BTB tag). scripts/mutate.py rebuilds a simulator per mutant
+  and runs the suite (directed + random + spread + long random) through ISS-vs-RTL lockstep.
+- Functional bugs are caught by lockstep; BTB bugs only change speed (EX re-checks every guess), so they're
+  caught by a cycle-count comparison against the golden build.
+- Result table: docs/mutation.md. Score: __/10. Survivors and how I fixed them: (fill this in)
