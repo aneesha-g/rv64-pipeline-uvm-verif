@@ -12,3 +12,8 @@ xsim.dir/
 *.jou
 *.pb
 .Xil/
+xvlog*
+xelab*
+xsc*
+webtalk*
+*.wdb
