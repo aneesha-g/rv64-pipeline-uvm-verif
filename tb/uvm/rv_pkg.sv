@@ -200,6 +200,7 @@ package rv_pkg;
     bit          halted;
     bit          failed;
     int unsigned n_checked;
+    int unsigned sva_fail;      // set by the test from the bound SVA checker
 
     function new(string name, uvm_component parent);
       super.new(name, parent);
@@ -273,8 +274,13 @@ package rv_pkg;
 `endif
 
     function void report_phase(uvm_phase phase);
+      if (sva_fail != 0) begin
+        `uvm_error("SB", $sformatf("SVA FAILED: %0d assertion failures (see the SVA Error lines above)", sva_fail))
+      end
       if (failed) begin
         `uvm_error("SB", "lockstep FAILED")
+      end else if (sva_fail != 0) begin
+        // already reported above
       end else if (!halted) begin
         `uvm_error("SB", "program never halted (timeout?)")
       end else begin
@@ -762,6 +768,7 @@ package rv_pkg;
         `uvm_error("TIMEOUT", $sformatf("program did not halt within %0d cycles", max_cycles))
       end
       repeat (5) @(posedge vif.clk);
+      env.sb.sva_fail = vif.sva_fail;
       phase.drop_objection(this, "done");
     endtask
   endclass

@@ -2,8 +2,9 @@
 
 A 5-stage pipelined RISC-V (RV32I) CPU in Verilog, verified by a UVM testbench whose scoreboard checks
 every retired instruction against a C++ instruction-set simulator (ISS) through DPI-C. Stimulus comes from
-self-checking directed programs and a hazard-targeted constrained-random program generator. Functional
-coverage is closed to 100%, and mutation testing shows that the checkers catch injected RTL bugs.
+self-checking directed programs and a hazard-targeted constrained-random program generator. SVA assertions
+check the pipeline rules cycle by cycle, functional coverage is closed to 100%, and mutation testing shows
+that the checkers catch injected RTL bugs.
 
 ## Results
 
@@ -11,8 +12,9 @@ coverage is closed to 100%, and mutation testing shows that the checkers catch i
 |---|---|
 | UVM regression on Vivado xsim, random instruction-memory latency | 13/13 programs pass, every retired instruction compared with the ISS |
 | Functional coverage, merged across the regression | 100% of 149 bins in 2 covergroups |
+| SVA assertions bound to the core | 17 assertions, 0 failures on the regression |
 | Mutation testing, 10 injected RTL bugs | 10/10 killed by a 50-test suite ([docs/mutation.md](docs/mutation.md)) |
-| Checker sanity test | SUB changed to ADD in the ALU is flagged at the first `sub` that retires |
+| Checker sanity tests | SUB changed to ADD in the ALU is flagged at the first `sub` that retires; with the load-use stall removed, `a_no_load_forward` fires 2 cycles before the scoreboard mismatch |
 
 ## Design (`rtl/`)
 
@@ -64,6 +66,16 @@ flowchart LR
   - Closure: the first merged run left 12 bins uncovered (backward `beq`/`blt`/`bge`/`bltu`/`bgeu`, a
     wrong jalr target, a load-use stall during a refill). They came from limits of the random generator,
     so `sw/tests/t_cov.S` targets them directly.
+- **SVA assertions (`tb/sva/core_sva.sv`):** 17 concurrent assertions attached to `core` with `bind`, so
+  the RTL is unchanged. They check the pipeline rules at the cycle they apply: x0 is never written, a load's
+  data is never forwarded out of EX/MEM, the youngest producer wins a double hazard, a load-use stall
+  inserts a bubble and holds fetch, a misprediction flushes IF/ID and ID/EX and restarts at the right pc,
+  the icache refill port holds its request and walks a line from its first word, and the retire stream
+  has no gaps, no repeats and nothing after the halt. A failure is counted and fails the test through the
+  scoreboard. Run against the 10 mutation bugs (Verilator, same 13 programs), the assertions catch 6 of
+  them: both forwarding bugs, the missing load-use stall, the missing flush, the x0 write and the
+  misaligned refill. For the forwarding-priority bug, one program is caught only by an assertion because
+  the wrong value never reaches a retired result.
 - **Mutation testing (`scripts/mutate.py`):** injects one bug at a time (forwarding, load-use stall,
   flush, x0, sign extension, branch immediate, icache fill, BTB) and runs the suite in lockstep.
   Functional bugs are caught by the ISS comparison; BTB bugs only change timing, so they are caught by
@@ -105,6 +117,7 @@ scripts/cpi.sh              # cycles and CPI with and without the predictor
 | `rtl/` | core, decode, ALU, regfile, branch predictor, icache |
 | `iss/` | C++ ISS and its DPI-C wrapper |
 | `tb/uvm/` | UVM environment, coverage, and the xsim scripts |
+| `tb/sva/` | SVA checker bound to the core |
 | `tb/directed/` | Verilator testbench with the lockstep checker |
 | `sw/tests/` | directed assembly tests |
 | `programs/` | prebuilt `.bin`/`.hex` programs used by the UVM regression |
@@ -118,4 +131,4 @@ scripts/cpi.sh              # cycles and CPI with and without the predictor
 - No CSRs or interrupts: `ecall` or an illegal instruction ends the program.
 - The icache has no `fence.i`, and a refill in progress is not cancelled on a redirect.
 - Data memory is a fixed-latency model.
-- Next: SVA assertions and formal checks, then CI.
+- Next: prove the SVA properties formally (bounded model checking), then CI.

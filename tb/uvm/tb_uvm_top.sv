@@ -68,6 +68,23 @@ module tb_uvm_top;
   assign rif.p_act_taken   = (dut.ex_next_pc   != dut.idex_pc + 32'd4);
   assign rif.p_ic_fill     = dut.imem_req;
 
+  // ----- SVA checker: attached to the core with bind (the RTL is not modified) -----
+  bind core core_sva #(.XLEN(32)) u_sva (
+    .clk(clk), .rst_n(rst_n),
+    .pc(pc), .ifid_valid(ifid_valid), .ifid_pc(ifid_pc), .ifid_insn(ifid_insn), .idex_valid(idex_valid),
+    .stall(stall), .ex_redirect(ex_redirect), .ex_next_pc(ex_next_pc),
+    .e_legal(e_legal), .e_uses_rs1(e_uses_rs1), .e_uses_rs2(e_uses_rs2),
+    .ex_rs1(ex_rs1), .ex_rs2(ex_rs2), .ex_a(ex_a), .ex_b(ex_b),
+    .exmem_wen(exmem_wen), .exmem_is_load(exmem_is_load), .exmem_rd(exmem_rd), .exmem_result(exmem_result),
+    .memwb_wen(memwb_wen), .memwb_rd(memwb_rd),
+    .imem_req(imem_req), .imem_rvalid(imem_rvalid), .imem_addr(imem_addr),
+    .rvfi_valid(rvfi_valid), .rvfi_halt(rvfi_halt), .rvfi_order(rvfi_order),
+    .rvfi_pc_rdata(rvfi_pc_rdata), .rvfi_pc_wdata(rvfi_pc_wdata),
+    .rvfi_rd_addr(rvfi_rd_addr), .rvfi_rd_wdata(rvfi_rd_wdata),
+    .rvfi_mem_rmask(rvfi_mem_rmask), .rvfi_mem_wmask(rvfi_mem_wmask)
+  );
+  assign rif.sva_fail = dut.u_sva.n_fail;
+
   // ----- reset -----
   initial begin
     rif.rst_n = 1'b0;

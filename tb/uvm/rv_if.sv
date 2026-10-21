@@ -47,4 +47,7 @@ interface rv_if (input bit clk);
   logic       p_pred_taken;    // IF guessed taken for it
   logic       p_act_taken;     // it really was taken
   logic       p_ic_fill;       // icache line fill in progress
+
+  // number of SVA failures so far (from the core_sva checker bound to the core)
+  logic [31:0] sva_fail;
 endinterface

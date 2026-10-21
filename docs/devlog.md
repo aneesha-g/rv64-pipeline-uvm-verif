@@ -58,7 +58,7 @@ Allocate on taken, update on hit. BP\_EN=0 reproduces the Phase 3 core.
 * Regression (tb\uvm\regress.bat, random imem timing): 12/12 PASS.
 * Sanity check: changed SUB to ADD in alu.v -> LOCKSTEP mismatch at retire #3 (sub x4,x2,x1), test FAILED. Reverted -> PASS.
 * Bug hit: the DPI sim would not start on Windows (status -1073741511 = DLL entry point not found; also 5-minute "Failed to communicate with child process" hangs).
-Cause: the sim kernel loaded the wrong C++ runtime DLL. Fix: build.bat copies libstdc++-6.dll, libgcc\_s\_seh-1.dll and libwinpthread-1.dll
+Cause: the sim kernel loaded the wrong C++ runtime DLL. Fix: build.bat copies libstdc++-6.dll, libgcc\_s\_sjlj-1.dll and libwinpthread-1.dll
 from Vivado's MinGW 6.2.0 into xsim.dir\rv\_sim. Passing static-link flags to xsc fails because xsc only archives; xelab does the linking.
 
 ## Phase 8: constrained-random program generator
@@ -85,6 +85,24 @@ cg\_retire, sampled per retired instruction, and cg\_pipe, sampled every clock f
 and a load-use loop that fills exactly one cache line. Result: 100% (149 bins), 13/13 PASS.
 * Bug hit: "Expected a switch but found p" from xsim once sim.bat also passed -cov\_db\_dir/-cov\_db\_name.
 Fix: sim.bat writes the options to a file and calls xsim -f.
+
+## Phase 10: SVA assertions
+
+* tb/sva/core\_sva.sv: 17 concurrent assertions attached to core with bind (the RTL is not changed).
+x0 never written, load data never forwarded out of EX/MEM, youngest producer wins (operands A and B),
+load-use stall = bubble into EX + fetch held, redirect = IF/ID and ID/EX flushed + pc restarts at the real next pc,
+icache refill port (request held until answered, starts on a line boundary, next word +4),
+memory only answers an open request (environment rule; an assume in formal), retire order +1,
+legal RVFI masks, pc chain between retires, nothing retires after the halt.
+* Failures are counted in the checker; the test copies the count into the scoreboard, which reports SVA FAILED.
+* Regression with assertions on (xsim): 13/13 PASS, 0 assertion failures. Extra runs in Verilator: the 13 programs
+at imem\_lat 1/3/7/12 and 60 new random programs (default, --spread, --n 300): 0 failures.
+* Sanity: removed the load-use stall in core.v -> a\_no\_load\_forward fired at 1355 ns; the scoreboard mismatch
+came at 1375 ns (retire #39, 2 cycles later). Restored with git restore.
+* Against the 10 mutation bugs (Verilator, 13 programs): assertions catch 6 (fwd\_exmem\_off, fwd\_priority\_swap,
+loaduse\_no\_stall, flush\_skipped, x0\_forwarded, icache\_unaligned\_fill). For fwd\_priority\_swap one program is
+caught only by an assertion. Datapath bugs (sign extension, branch immediate) are left to the ISS, BTB bugs to cycle counts.
+* xsim does not support cover property, so scenario coverage stays in the covergroups.
 
 ## Phase 11: mutation testing
 
