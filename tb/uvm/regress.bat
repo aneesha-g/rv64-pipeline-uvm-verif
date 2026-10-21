@@ -1,8 +1,9 @@
 @echo off
-rem usage: tb\uvm\regress.bat [fast|rand|slow]    runs every program in programs\
+rem usage: tb\uvm\regress.bat [fast|rand|slow]    runs every program in programs\, then merges coverage
 set T=%1
 if "%T%"=="" set T=rand
 for %%f in (programs\*.hex) do call :one %%~nf
+call tb\uvm\cov_report.bat
 exit /b 0
 :one
 call tb\uvm\sim.bat %1 %T% > nul 2>&1

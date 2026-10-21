@@ -1,4 +1,6 @@
 @echo off
+rem a rebuild throws away old coverage results (the coverage model may have changed)
+if exist covdb rmdir /s /q covdb
 set DEF=
 if defined NODPI set DEF=-d NO_DPI
 call xvlog rtl\regfile.v rtl\alu.v rtl\decode.v rtl\bpred.v rtl\icache.v rtl\core.v

@@ -30,4 +30,21 @@ interface rv_if (input bit clk);
   logic [3:0]  rvfi_mem_wmask;
   logic [31:0] rvfi_mem_rdata;
   logic [31:0] rvfi_mem_wdata;
+
+  // white-box probes for functional coverage: read-only taps into the core,
+  // driven from tb_uvm_top by hierarchical reference (the RTL is not changed)
+  logic       p_ex_use_a;      // legal instruction in EX reads rs1 (rs1 != x0)
+  logic       p_ex_use_b;      // ... reads rs2 (rs2 != x0)
+  logic       p_fwd_a_exmem;   // rs1 matches the EX/MEM producer
+  logic       p_fwd_a_memwb;   // rs1 matches the MEM/WB producer
+  logic       p_fwd_b_exmem;
+  logic       p_fwd_b_memwb;
+  logic       p_wt;            // ID read uses the regfile write-through from WB
+  logic       p_stall;         // load-use stall
+  logic       p_redirect;      // EX found the IF guess wrong -> flush
+  logic       p_ctrl;          // control-flow instruction in EX
+  logic [1:0] p_ctrl_kind;     // 0 branch, 1 jal, 2 jalr
+  logic       p_pred_taken;    // IF guessed taken for it
+  logic       p_act_taken;     // it really was taken
+  logic       p_ic_fill;       // icache line fill in progress
 endinterface

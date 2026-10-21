@@ -17,3 +17,8 @@ xelab*
 xsc*
 webtalk*
 *.wdb
+covdb/
+covmerge/
+covreport/
+xsim_args.txt
+xcrg*
