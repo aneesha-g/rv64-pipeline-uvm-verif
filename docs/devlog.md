@@ -54,17 +54,12 @@ Allocate on taken, update on hit. BP\_EN=0 reproduces the Phase 3 core.
 
 ## Phase 7: UVM environment (Vivado xsim, Windows)
 
-\- Scoreboard steps the C++ ISS via DPI-C on every RTL retire and compares all 11 RVFI fields. NODPI build only counts retires (bring-up only).
-
-\- Regression (tb\\uvm\\regress.bat, random imem timing): 12/12 PASS.
-
-\- Sanity check: changed SUB to ADD in alu.v -> LOCKSTEP mismatch at retire #3 (sub x4,x2,x1), test FAILED. Reverted -> PASS.
-
-\- Bug hit: DPI sim would not start on Windows (status -1073741511 = DLL entry point not found; also 5-min "Failed to communicate with child process" hangs).
-
-&#x20; Cause: sim kernel loaded the wrong C++ runtime DLL. Fix: build.bat copies libstdc++-6.dll, libgcc\_s\_seh-1.dll and libwinpthread-1.dll
-
-&#x20; from Vivado's MinGW 6.2.0 into xsim.dir\\rv\_sim. Passing static-link flags to xsc fails because xsc only archives; xelab does the linking.
+* Scoreboard steps the C++ ISS via DPI-C on every RTL retire and compares all 11 RVFI fields. The NODPI build only counts retires (bring-up only).
+* Regression (tb\uvm\regress.bat, random imem timing): 12/12 PASS.
+* Sanity check: changed SUB to ADD in alu.v -> LOCKSTEP mismatch at retire #3 (sub x4,x2,x1), test FAILED. Reverted -> PASS.
+* Bug hit: the DPI sim would not start on Windows (status -1073741511 = DLL entry point not found; also 5-minute "Failed to communicate with child process" hangs).
+Cause: the sim kernel loaded the wrong C++ runtime DLL. Fix: build.bat copies libstdc++-6.dll, libgcc\_s\_seh-1.dll and libwinpthread-1.dll
+from Vivado's MinGW 6.2.0 into xsim.dir\rv\_sim. Passing static-link flags to xsc fails because xsc only archives; xelab does the linking.
 
 ## Phase 8: constrained-random program generator
 
@@ -76,6 +71,21 @@ value, alternating branch inside loops, jal/jalr skips with stores on the skippe
 * Seeds run (fill in): \_\_ default, \_\_ with --n 400, \_\_ with --spread, \_\_ at imem\_lat=7. Failures: \_\_
 * Bugs found by random tests / how I debugged: (fill this in)
 
+## Phase 9: functional coverage (UVM, xsim)
+
+* rv\_coverage (a uvm\_subscriber on the RVFI monitor) with two covergroups:
+cg\_retire, sampled per retired instruction, and cg\_pipe, sampled every clock from read-only probes into the core
+(forwarding matches, write-through, load-use stall, redirect, prediction, icache fill).
+* Each test saves its own coverage database; tb\uvm\cov\_report.bat (called by regress.bat) merges them with xcrg.
+* First merged run: 92.1% (cg\_retire 89.3%, cg\_pipe 94.8%). Holes: backward beq/blt/bge/bltu/bgeu
+(gen.py only makes forward branches and closes loops with bne), jalr with a wrong predicted target
+(every function had a single caller), and a load-use stall during an icache fill.
+* Also found: xsim put the instruction enum into range auto-bins (cp\_insn showed 2.5%), so every instruction now has a named bin.
+* t\_cov.S closes the holes: a backward loop for each branch type, one function called from 3 sites,
+and a load-use loop that fills exactly one cache line. Result: 100% (149 bins), 13/13 PASS.
+* Bug hit: "Expected a switch but found p" from xsim once sim.bat also passed -cov\_db\_dir/-cov\_db\_name.
+Fix: sim.bat writes the options to a file and calls xsim -f.
+
 ## Phase 11: mutation testing
 
 * mutants/mutant\_defs.py: 10 injected bugs (forwarding, priority, load-use stall, flush, x0, sign-extension,
@@ -83,5 +93,5 @@ branch immediate, icache fill alignment, BTB target, BTB tag). scripts/mutate.py
 and runs the suite (directed + random + spread + long random) through ISS-vs-RTL lockstep.
 * Functional bugs are caught by lockstep; BTB bugs only change speed (EX re-checks every guess), so they're
 caught by a cycle-count comparison against the golden build.
-* Result table: docs/mutation.md. Score: \_\_/10. Survivors and how I fixed them: (fill this in)
+* Result table: docs/mutation.md. Score: 10/10. Survivors and how I fixed them: (fill this in)
 

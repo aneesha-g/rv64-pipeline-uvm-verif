@@ -22,3 +22,4 @@ covmerge/
 covreport/
 xsim_args.txt
 xcrg*
+trace_rtl.txt
